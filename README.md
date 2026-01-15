@@ -1,45 +1,35 @@
 # Claude Code Guardrails
 
-**Your security team wants to control what Claude Code can do. Your developers don't want to be blocked. This solves both.**
+![Example Table](example.png)
 
-Without guardrails:
+`settings.json` works if:
 
-- Claude runs `rm -rf /` and you have a bad day
-- Every developer has different personal rules (or none)
-- No audit trail when something goes wrong
-- Security team has zero visibility
+- You're fine editing JSON and killing Claude Code sessions every time policy changes
+- Your security team is comfortable making PRs
+- You don't need to know what got blocked, when, or for whom
+- Basic pattern matching like `Bash(rm:*)` covers your use cases
 
-With guardrails:
+Use this if:
 
-- Dangerous commands get blocked or flagged before execution
-- One decision table your whole team shares
-- Security team edits rules in a spreadsheet UI—no JSON, no PRs
-- Changes apply instantly, no restarts
+- Policy changes need to apply instantly across your team—no git pull, no restart
+- Security/compliance needs a clear audit trail of every blocked command
+- You need conditional logic: "allow `rm -rf` on `node_modules`, deny everywhere else"
+- Non-engineers need to edit rules without touching config files
 
----
-
-## How it works
+##### Rulebricks gives you instant governance from one hook.
 
 ```
 Claude Code → PreToolUse hook → Rulebricks API → allow / deny / ask
 ```
-
-You edit a decision table like this:
-
-<!-- TODO: Add screenshot here -->
-
-Claude Code checks every tool call against your rules before executing.
-
----
 
 ## Setup (5 minutes)
 
 ### 1. Create your rules
 
 1. Go to [rulebricks.com](https://rulebricks.com) and create an account
-2. Fork one of these templates:
-   - **Bash Command Guardrails** — control shell commands
-   - **File Access Policy** — control file read/write/edit
+2. Fork one of these templates from the "AI Agents" category:
+   - **Claude – Bash Guardrails** — control shell commands
+   - **Claude – File Access Policy** — control file read/write/edit
    - **MCP Tool Governance** — control MCP server operations
 3. Customize the rules for your team
 4. Publish the rule
@@ -67,9 +57,7 @@ Claude will detect your published rules and wire up the appropriate hooks.
 
 ### 3. Restart Claude Code
 
-That's it.
-
----
+You're done.
 
 ## What gets checked
 
@@ -78,8 +66,6 @@ That's it.
 | Bash Command Guardrails | `Bash`              | Shell commands   |
 | File Access Policy      | `Read\|Write\|Edit` | File operations  |
 | MCP Tool Governance     | `mcp__*`            | MCP server calls |
-
----
 
 ## Configuration
 
@@ -98,32 +84,10 @@ Environment variables in `~/.claude/settings.json`:
 | -------------------- | ------------------------------------- |
 | `RULEBRICKS_API_KEY` | Your Rulebricks API key (required)    |
 | `RULEBRICKS_VERBOSE` | Set to `1` to log decisions to stderr |
-| `RULEBRICKS_DRY_RUN` | Set to `1` to log without enforcing   |
-
----
 
 ## Updating rules
 
 Edit your decision table at rulebricks.com. Changes apply immediately—no restart, no redeployment.
-
----
-
-## Why not just use settings.json?
-
-Claude Code has built-in `permissions.allow` and `permissions.deny`. Use those if:
-
-- You're a solo developer
-- Your rules never change
-- You don't need audit trails
-
-Use Rulebricks if:
-
-- You have a team and need centralized policy
-- Security/compliance needs visibility into what's being blocked
-- You want to edit rules without touching config files
-- You need the same rules across Claude Code + Cursor + other agents
-
----
 
 ## Uninstall
 
@@ -131,9 +95,3 @@ Use Rulebricks if:
 rm ~/.claude/hooks/guardrail*.py
 # Remove the hooks.PreToolUse entry from ~/.claude/settings.json
 ```
-
----
-
-## License
-
-MIT
