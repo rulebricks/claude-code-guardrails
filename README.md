@@ -79,7 +79,7 @@ Environment variables in `~/.claude/settings.json`:
 
 ## Updating rules
 
-Edit your decision table at rulebricks.com and publish a new version. Changes apply immediately— no restart, no redeployment.
+Edit your decision table and publish a new version. Changes apply immediately— no restart, no redeployment.
 
 ## Reviewing histories
 
