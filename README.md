@@ -91,7 +91,7 @@ Review the history of blocked commands in the Logs tab. You can query by tool, a
 
 You're free to edit the guardrail however you'd like to redact sensitive data before it hits our platform.
 
-Also– while this works with our cloud environment, you can also run this on private infrastructure, and using your own logging provider. [Reach out](https://calendly.com/prefix-software/rulebricks?month=2026-01) if that might be of interest.
+Also– while this works with our cloud environment, you can also run this on private infrastructure, using your own logging provider. [Reach out](https://calendly.com/prefix-software/rulebricks?month=2026-01) if that might be of interest.
 
 ## Uninstall
 
