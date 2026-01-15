@@ -33,24 +33,16 @@ Claude Code → PreToolUse hook → Rulebricks API → allow / deny / ask
    - **MCP Tool Governance** — control MCP server operations
 3. Customize the rules for your team
 4. Publish the rule
-5. Copy your API key from Settings
+5. Copy your API key from the API tab
 
 ### 2. Install
 
-**Option A: Traditional**
+**Automatically finds your rules**
 
 ```bash
 git clone https://github.com/rulebricks/claude-code-guardrails
 cd claude-code-guardrails
 ./install.sh
-```
-
-**Option B: Let Claude install itself** (yes, really)
-
-```bash
-git clone https://github.com/rulebricks/claude-code-guardrails
-cd claude-code-guardrails
-./install-with-claude.sh
 ```
 
 Claude will detect your published rules and wire up the appropriate hooks.
@@ -87,11 +79,41 @@ Environment variables in `~/.claude/settings.json`:
 
 ## Updating rules
 
-Edit your decision table at rulebricks.com. Changes apply immediately—no restart, no redeployment.
+Edit your decision table at rulebricks.com and publish a new version. Changes apply immediately— no restart, no redeployment.
+
+## Reviewing histories
+
+Review the history of blocked commands in the Logs tab. You can query by tool, approval decision, and more. There are other meaningful perks to this data, like finding out which tool is being blocked the most.
+
+![Example Logs](logs.png)
+
+## Data privacy
+
+You're free to edit the guardrail however you'd like to redact sensitive data.
+
+Also– while this works with our cloud environment, you can also run this on private infrastructure, and using your own logging provider. [Reach out](https://calendly.com/prefix-software/rulebricks?month=2026-01) if that might be of interest.
 
 ## Uninstall
 
 ```bash
-rm ~/.claude/hooks/guardrail*.py
-# Remove the hooks.PreToolUse entry from ~/.claude/settings.json
+# Remove hook script
+rm ~/.claude/hooks/guardrail.py
+
+# Remove from settings.json (manual)
+# Edit ~/.claude/settings.json and delete:
+#   - hooks.PreToolUse entry
+#   - env.RULEBRICKS_* variables
+```
+
+Or, use this one-liner to remove the hook and settings:
+
+```bash
+rm ~/.claude/hooks/guardrail.py && python3 -c "
+import json
+p = '$HOME/.claude/settings.json'.replace('\$HOME', '$HOME')
+s = json.load(open(p))
+s.get('hooks', {}).pop('PreToolUse', None)
+for k in list(s.get('env', {}).keys()):
+    if k.startswith('RULEBRICKS_'): s['env'].pop(k)
+json.dump(s, open(p, 'w'), indent=2)"
 ```

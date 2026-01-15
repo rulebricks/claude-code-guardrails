@@ -1,13 +1,8 @@
 #!/bin/bash
 set -e
 
-echo "Claude Code Guardrails"
-echo "======================"
-echo ""
-echo "Prerequisites:"
-echo "  1. Create account at rulebricks.com"
-echo "  2. Fork and publish a guardrail template"
-echo "  3. Have your API key ready"
+echo "Claude Code Guardrails (Auto-Setup)"
+echo "===================================="
 echo ""
 
 read -p "Rulebricks API key: " -s API_KEY
@@ -18,86 +13,78 @@ if [ -z "$API_KEY" ]; then
     exit 1
 fi
 
-echo ""
-echo "Enter rule slugs (leave blank to skip):"
-read -p "  Bash Command Guardrails slug: " BASH_RULE
-read -p "  File Access Policy slug: " FILE_RULE
-read -p "  MCP Tool Governance slug: " MCP_RULE
-
-if [ -z "$BASH_RULE" ] && [ -z "$FILE_RULE" ] && [ -z "$MCP_RULE" ]; then
-    echo "Error: At least one rule slug required"
+if ! command -v jq &> /dev/null; then
+    echo "Error: jq required. Install with: brew install jq"
     exit 1
 fi
 
-echo ""
-echo "Installing..."
-
-# Install SDK
-pip install rulebricks -q
-
-# Create hooks directory
 HOOKS_DIR="$HOME/.claude/hooks"
 mkdir -p "$HOOKS_DIR"
 
-# Copy guardrail script
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 cp "$SCRIPT_DIR/guardrail.py" "$HOOKS_DIR/guardrail.py"
 chmod +x "$HOOKS_DIR/guardrail.py"
 
-# Build matcher based on which rules are configured
+echo ""
+echo "Detecting your published rules..."
+
+RULES_RESPONSE=$(curl -s -H "x-api-key: $API_KEY" "https://rulebricks.com/api/v1/admin/rules/list")
+
+if echo "$RULES_RESPONSE" | jq -e '.error' > /dev/null 2>&1; then
+    echo "Error: $(echo "$RULES_RESPONSE" | jq -r '.error')"
+    exit 1
+fi
+
+BASH_RULE=$(echo "$RULES_RESPONSE" | jq -r '.[] | select(.request_schema | map(.key) | contains(["command", "has_force_flag"])) | .slug' | head -1)
+FILE_RULE=$(echo "$RULES_RESPONSE" | jq -r '.[] | select(.request_schema | map(.key) | contains(["tool", "path_pattern", "extension"])) | .slug' | head -1)
+MCP_RULE=$(echo "$RULES_RESPONSE" | jq -r '.[] | select(.request_schema | map(.key) | contains(["mcp_server", "operation_pattern"])) | .slug' | head -1)
+
+[ -n "$BASH_RULE" ] && echo "  ✓ Bash guardrail: $BASH_RULE"
+[ -n "$FILE_RULE" ] && echo "  ✓ File guardrail: $FILE_RULE"
+[ -n "$MCP_RULE" ] && echo "  ✓ MCP guardrail: $MCP_RULE"
+
+if [ -z "$BASH_RULE" ] && [ -z "$FILE_RULE" ] && [ -z "$MCP_RULE" ]; then
+    echo ""
+    echo "No guardrail rules detected."
+    echo ""
+    echo "To get started:"
+    echo "  1. Go to rulebricks.com/templates"
+    echo "  2. Fork: Bash Command Guardrails, File Access Policy, or MCP Tool Governance"
+    echo "  3. Publish the rule"
+    echo "  4. Run this script again"
+    exit 1
+fi
+
 MATCHERS=""
 [ -n "$BASH_RULE" ] && MATCHERS="Bash"
 [ -n "$FILE_RULE" ] && MATCHERS="${MATCHERS:+$MATCHERS|}Read|Write|Edit"
 [ -n "$MCP_RULE" ] && MATCHERS="${MATCHERS:+$MATCHERS|}mcp__*"
 
-# Update settings.json
 SETTINGS_FILE="$HOME/.claude/settings.json"
 
 python3 << EOF
 import json
 import os
 
-settings_path = "$SETTINGS_FILE"
-settings = {}
+path = "$SETTINGS_FILE"
+s = json.load(open(path)) if os.path.exists(path) else {}
 
-if os.path.exists(settings_path):
-    with open(settings_path, "r") as f:
-        try:
-            settings = json.load(f)
-        except:
-            pass
+s.setdefault("env", {})["RULEBRICKS_API_KEY"] = "$API_KEY"
+if "$BASH_RULE": s["env"]["RULEBRICKS_BASH_RULE"] = "$BASH_RULE"
+if "$FILE_RULE": s["env"]["RULEBRICKS_FILE_RULE"] = "$FILE_RULE"
+if "$MCP_RULE": s["env"]["RULEBRICKS_MCP_RULE"] = "$MCP_RULE"
 
-# Set environment variables
-settings.setdefault("env", {})
-settings["env"]["RULEBRICKS_API_KEY"] = "$API_KEY"
-if "$BASH_RULE":
-    settings["env"]["RULEBRICKS_BASH_RULE"] = "$BASH_RULE"
-if "$FILE_RULE":
-    settings["env"]["RULEBRICKS_FILE_RULE"] = "$FILE_RULE"
-if "$MCP_RULE":
-    settings["env"]["RULEBRICKS_MCP_RULE"] = "$MCP_RULE"
-
-# Set up hook
-settings.setdefault("hooks", {})
-settings["hooks"]["PreToolUse"] = [{
+s.setdefault("hooks", {})["PreToolUse"] = [{
     "matcher": "$MATCHERS",
-    "hooks": [{
-        "type": "command",
-        "command": "$HOOKS_DIR/guardrail.py"
-    }]
+    "hooks": [{"type": "command", "command": "$HOOKS_DIR/guardrail.py"}]
 }]
 
-with open(settings_path, "w") as f:
-    json.dump(settings, f, indent=2)
+json.dump(s, open(path, "w"), indent=2)
 EOF
 
 echo ""
-echo "✓ Installed guardrail.py to $HOOKS_DIR"
+echo "✓ Installed to $HOOKS_DIR/guardrail.py"
 echo "✓ Updated $SETTINGS_FILE"
-echo ""
-echo "Rules configured:"
-[ -n "$BASH_RULE" ] && echo "  • Bash: $BASH_RULE"
-[ -n "$FILE_RULE" ] && echo "  • File: $FILE_RULE"
-[ -n "$MCP_RULE" ] && echo "  • MCP: $MCP_RULE"
+echo "✓ Matchers: $MATCHERS"
 echo ""
 echo "Restart Claude Code to activate."
