@@ -1,3 +1,5 @@
+**We have since built a dedicated product to help developers manage AI permissions better, which we intend to make open source. Check it out at [stoplight.ai](https://stoplight.ai).**
+
 # Claude Code Guardrails
 
 ![Example Table](example.png)
